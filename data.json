@@ -1,0 +1,18 @@
+{
+    "FormatVersion": "aws_v1",
+    "PriceList": [
+        "{\"product\":{\"productFamily\":\"Compute\",\"attributes\":{\"regionCode\":\"us-gov-west-1\",\"servicecode\":\"AmazonECS\",\"usagetype\":\"UGW1-Fargate-EphemeralStorage-GB-Hours\",\"locationType\":\"AWS Region\",\"location\":\"AWS GovCloud (US-West)\",\"servicename\":\"Amazon Elastic Container Service\",\"operation\":\"\",\"storagetype\":\"default\"},\"sku\":\"Y3U43N2TYBK2GY4T\"},\"serviceCode\":\"AmazonECS\",\"terms\":{\"OnDemand\":{\"Y3U43N2TYBK2GY4T.JRTCKXETXF\":{\"priceDimensions\":{\"Y3U43N2TYBK2GY4T.JRTCKXETXF.6YS6EN2CT7\":{\"unit\":\"GB-Hours\",\"endRange\":\"Inf\",\"description\":\"AWS Fargate - Ephemeral Storage - US Gov West 1\",\"appliesTo\":[],\"rateCode\":\"Y3U43N2TYBK2GY4T.JRTCKXETXF.6YS6EN2CT7\",\"beginRange\":\"0\",\"pricePerUnit\":{\"USD\":\"0.0001330000\"}}},\"sku\":\"Y3U43N2TYBK2GY4T\",\"effectiveDate\":\"2025-03-01T00:00:00Z\",\"offerTermCode\":\"JRTCKXETXF\",\"termAttributes\":{}}}},\"version\":\"20250605175626\",\"publicationDate\":\"2025-06-05T17:56:26Z\"}"
+    ],
+    "ResponseMetadata": {
+        "RequestId": "2bb5b4de-5a13-4127-bee3-de7af50ee44a",
+        "HTTPStatusCode": 200,
+        "HTTPHeaders": {
+            "date": "Thu, 12 Jun 2025 01:13:36 GMT",
+            "content-type": "application/x-amz-json-1.1",
+            "content-length": "1036",
+            "connection": "keep-alive",
+            "x-amzn-requestid": "2bb5b4de-5a13-4127-bee3-de7af50ee44a"
+        },
+        "RetryAttempts": 0
+    }
+}
