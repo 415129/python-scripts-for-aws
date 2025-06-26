@@ -18,7 +18,8 @@ import re
 #     }
 # )
 def find_whole_word(word, string):
-    return re.search(r'\b' + re.escape(word) + r'\b', string, re.IGNORECASE)
+    for w in word:
+        return re.search(r'\b' + re.escape(w) + r'\b', string, re.IGNORECASE)
 
 def current_price(ServiceCode,usagecode,regionCode,usagetype, byol=False):
 
@@ -32,7 +33,7 @@ def current_price(ServiceCode,usagecode,regionCode,usagetype, byol=False):
     #regionCode='us-gov-east-1'
     filters1= [{}]
 
-    if usagecode in ['UGW1-BoxUsage']:
+    if find_whole_word(["BoxUsage"], usagecode):
             filters1 = [
                 {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagetype},
@@ -44,7 +45,7 @@ def current_price(ServiceCode,usagecode,regionCode,usagetype, byol=False):
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
-    elif usagecode in ['UGW1-EBS']:
+    elif find_whole_word(["EBS"], usagecode):
             filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagetype},
@@ -56,7 +57,7 @@ def current_price(ServiceCode,usagecode,regionCode,usagetype, byol=False):
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 #{'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
-    elif usagecode in ['UGW1-RDS']:
+    elif find_whole_word(["RDS",'DataTransfer','Multi-AZUsage','Aurora','InstanceUsage','HeavyUsage'], usagecode) :
         filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagetype},
@@ -68,7 +69,7 @@ def current_price(ServiceCode,usagecode,regionCode,usagetype, byol=False):
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 #{'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
-    elif find_whole_word("Fargate", usagecode):
+    elif find_whole_word(["Fargate"], usagecode):
         filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagetype},
