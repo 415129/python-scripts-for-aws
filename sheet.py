@@ -21,7 +21,7 @@ def find_whole_word(word, string):
     for w in word:
         return re.search(r'\b' + re.escape(w) + r'\b', string, re.IGNORECASE)
 
-def current_price(ServiceCode,usagecode,regionCode,usagetype, byol=False):
+def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol=False):
 
     region_name='us-east-1'
     instance_type='r5a.xlarge'
@@ -33,10 +33,10 @@ def current_price(ServiceCode,usagecode,regionCode,usagetype, byol=False):
     #regionCode='us-gov-east-1'
     filters1= [{}]
 
-    if find_whole_word(["BoxUsage"], usagecode):
+    if find_whole_word(["BoxUsage","DedicatedUsage"], usagecode):
             filters1 = [
                 {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
-                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagetype},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
                 #{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region_name},
                 #{'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': instance_type},
                 {'Type': 'TERM_MATCH', 'Field': 'tenancy', 'Value': tenancy},
@@ -45,10 +45,34 @@ def current_price(ServiceCode,usagecode,regionCode,usagetype, byol=False):
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
+    elif find_whole_word(["DedicatedUsage"], usagecode):
+            filters1 = [
+                {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'Reserved'},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
+                #{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region_name},
+                #{'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': instance_type},
+                {'Type': 'TERM_MATCH', 'Field': 'tenancy', 'Value': 'Dedicated'},
+                {'Type': 'TERM_MATCH', 'Field': 'operatingSystem', 'Value': os},
+                {'Type': 'TERM_MATCH', 'Field': 'preInstalledSw','Value': preinstalled_software},
+                {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
+                {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
+                ]
+    elif find_whole_word(["SnapshotUsage","CPUCredits"], usagevalue):
+            filters1 = [
+                #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'Reserved'},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
+                #{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region_name},
+                #{'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': instance_type},
+                #{'Type': 'TERM_MATCH', 'Field': 'tenancy', 'Value': 'Dedicated'},
+                #{'Type': 'TERM_MATCH', 'Field': 'operatingSystem', 'Value': os},
+                #{'Type': 'TERM_MATCH', 'Field': 'preInstalledSw','Value': preinstalled_software},
+                {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
+                #{'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
+                ]
     elif find_whole_word(["EBS"], usagecode):
             filters1 = [
-                #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
-                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagetype},
+                {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': 'Storage'},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
                 #{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region_name},
                 #{'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': instance_type},
                 #{'Type': 'TERM_MATCH', 'Field': 'tenancy', 'Value': tenancy},
@@ -57,22 +81,27 @@ def current_price(ServiceCode,usagecode,regionCode,usagetype, byol=False):
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 #{'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
-    elif find_whole_word(["RDS",'DataTransfer','Multi-AZUsage','Aurora','InstanceUsage','HeavyUsage'], usagecode) :
+    elif find_whole_word(["RDS",'DataTransfer','Multi-AZUsage','InstanceUsage'], usagecode) :
         filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
-                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagetype},
-                #{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region_name},
-                #{'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': instance_type},
-                #{'Type': 'TERM_MATCH', 'Field': 'tenancy', 'Value': tenancy},
-                #{'Type': 'TERM_MATCH', 'Field': 'operatingSystem', 'Value': os},
-                #{'Type': 'TERM_MATCH', 'Field': 'preInstalledSw','Value': preinstalled_software},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
+                {"Type": "TERM_MATCH", "Field": "databaseEdition","Value": "Enterprise"},
+                {"Type": "TERM_MATCH", "Field": "databaseEngine","Value": "Oracle"},
+                {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
+                {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
+                ]
+    elif find_whole_word(['Aurora'], usagevalue) :
+        filters1 = [
+                #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
+                {"Type": "TERM_MATCH", "Field": "databaseEngine","Value": "Aurora MySQL" if find_whole_word(['Aurora:BackupUsage'],usagevalue) else "Any" },
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 #{'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
     elif find_whole_word(["Fargate"], usagecode):
         filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
-                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagetype},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
                 #{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region_name},
                 #{'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': instance_type},
                 #{'Type': 'TERM_MATCH', 'Field': 'tenancy', 'Value': tenancy},
@@ -144,20 +173,20 @@ if __name__ == "__main__":
               #print(f'ServiceCode is {ServiceCode}')
             if colname.value == 'Line Item Usage Type':
               t1=cell.value
-              usagetype= t1
-              usagecode=t1.split(':')[0]
+              usagevalue = t1
+              usagecode =t1.split(':')[0]
               #print(f'usagetype is {usagetype}')
             if colname.value == 'Product Region':
               regionCode=cell.value
               #print(f'regionCode is {regionCode}')
-        unitprice=current_price(ServiceCode,usagecode,regionCode,usagetype)
+        unitprice=current_price(ServiceCode,usagecode,regionCode,usagevalue)
         #print(unitprice,counter)
         for cell in row_cells:
             #print(cell.row)
             ws.cell(row=cell.row,column=9).value=unitprice
         
         if unitprice:
-            print(f'Unit Price for {usagetype} is {unitprice}')
+            print(f'Unit Price for {usagevalue} is {unitprice}')
             #print(counter)
             #print(ws.cell(row=counter,column=9).value)
             #ws.cell(row=counter+1,column=9).value=unitprice
