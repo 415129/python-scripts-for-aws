@@ -17,11 +17,14 @@ import re
 #         'mode': 'standard'
 #     }
 # )
-def find_whole_word(word, string):
-    for w in word:
-        return re.search(r'\b' + re.escape(w) + r'\b', string, re.IGNORECASE)
+def find_whole_word(word, string):     
+        for w in word:
+            #print(w)
+            match=re.search(r'\b' + re.escape(w) + r'\b', string, re.IGNORECASE)
+            if match is not None:
+                return True
 
-def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol=False):
+def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your own license'):
 
     region_name='us-east-1'
     instance_type='r5a.xlarge'
@@ -33,7 +36,7 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol=False):
     #regionCode='us-gov-east-1'
     filters1= [{}]
 
-    if find_whole_word(["BoxUsage","DedicatedUsage"], usagecode):
+    if find_whole_word(["BoxUsage"], usagecode):
             filters1 = [
                 {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
@@ -81,20 +84,29 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol=False):
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 #{'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
-    elif find_whole_word(["RDS",'DataTransfer','Multi-AZUsage','InstanceUsage'], usagecode) :
+    elif find_whole_word(["RDS","DataTransfer","Multi-AZUsage","UGW1-InstanceUsage"], usagecode) :
         filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
                 {"Type": "TERM_MATCH", "Field": "databaseEdition","Value": "Enterprise"},
                 {"Type": "TERM_MATCH", "Field": "databaseEngine","Value": "Oracle"},
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
-                {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
+                {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license'},               
                 ]
+        if find_whole_word(["GP2-Storage"], usagevalue):
+            filters1.pop()
+            filters1.append({"Type": "TERM_MATCH", "Field": "volumeName","Value": "gp2"})            
+        elif find_whole_word(["GP3-Storage"], usagevalue):
+            filters1.pop()
+            filters1.append({"Type": "TERM_MATCH", "Field": "volumeName","Value": "gp3"})            
+        elif find_whole_word(["PIOPS-Storage"], usagevalue):
+            filters1.pop()
+            filters1.append({"Type": "TERM_MATCH", "Field": "volumeName","Value": "io1"})        
     elif find_whole_word(['Aurora'], usagevalue) :
         filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
-                {"Type": "TERM_MATCH", "Field": "databaseEngine","Value": "Aurora MySQL" if find_whole_word(['Aurora:BackupUsage'],usagevalue) else "Any" },
+                {"Type": "TERM_MATCH", "Field": "databaseEngine","Value": "Aurora MySQL" if find_whole_word(['Aurora:BackupUsage','ServerlessV2Usage'],usagevalue) else "Any" },
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 #{'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
@@ -179,6 +191,7 @@ if __name__ == "__main__":
             if colname.value == 'Product Region':
               regionCode=cell.value
               #print(f'regionCode is {regionCode}')
+        #print(ServiceCode,usagecode,regionCode,usagevalue)
         unitprice=current_price(ServiceCode,usagecode,regionCode,usagevalue)
         #print(unitprice,counter)
         for cell in row_cells:
