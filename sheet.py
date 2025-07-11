@@ -158,6 +158,8 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
                 for price_dimensions in on_demand['priceDimensions'].values():
                     if find_whole_word(["SpotUsage"], usagecode) and ServiceCode == 'AmazonECS':
                         return((price_dimensions['pricePerUnit']['USD'] / 100) * 30)
+                    elif find_whole_word(["HeavyUsage"], usagecode) and ServiceCode == 'AmazonRDS':
+                        ec2heavyusuage(ServiceCode,filters1,region_name)
                     else:
                         return(price_dimensions['pricePerUnit']['USD'])
     except Exception as e:
