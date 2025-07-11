@@ -139,6 +139,11 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 #{'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
+    elif ServiceCode == 'AmazonS3':
+        filters1 = [
+                {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
+                ]
     else:
         #print('Filter not matching')
         pass
