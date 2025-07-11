@@ -9,14 +9,21 @@ from openpyxl.utils.cell import coordinate_from_string, column_index_from_string
 from botocore.exceptions import ClientError
 import re
 
-# config = Config(
-#     region_name = 'us-gov-west-1',
-#     signature_version = 'v4',
-#     retries = {
-#         'max_attempts': 10,
-#         'mode': 'standard'
-#     }
-# )
+def ec2heavyusuage(ServiceCode,filters1,region_name):
+    pricing_client = boto3.client('pricing', region_name=region_name) 
+    response = pricing_client.get_products(ServiceCode=ServiceCode, Filters=filters1)
+    for price in response['PriceList']:
+            price = json.loads(price)
+
+            for ReservedOne in price['terms']['Reserved'].values():
+                for price_dimensions in ReservedOne['priceDimensions'].values():
+                    if price_dimensions["description"] == "Upfront Fee":
+                        price=((price_dimensions['pricePerUnit']['USD'])/365/24)
+                        return(price)
+                    #return(price_dimensions['pricePerUnit']['USD'])
+
+
+                
 def find_whole_word(word, string):     
         for w in word:
             #print(w)
@@ -60,7 +67,11 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
-    elif find_whole_word(["SnapshotUsage","CPUCredits"], usagevalue):
+    elif find_whole_word(["DataTransfer"], usagevalue) and ServiceCode == 'AmazonEC2':
+            filters1 = [
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
+                ]
+    elif find_whole_word(["SnapshotUsage","CPUCredits","VolumeP-IOPS"], usagevalue):
             filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'Reserved'},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
@@ -84,14 +95,14 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 #{'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
-    elif find_whole_word(["RDS","DataTransfer","Multi-AZUsage","UGW1-InstanceUsage"], usagecode) :
+    elif find_whole_word(["RDS","DataTransfer","Multi-AZUsage","InstanceUsage","HeavyUsage"], usagecode) :
         filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
-                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
-                {"Type": "TERM_MATCH", "Field": "databaseEdition","Value": "Enterprise"},
-                {"Type": "TERM_MATCH", "Field": "databaseEngine","Value": "Oracle"},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue.replace("HeavyUsage", "InstanceUsage")},
+                #{"Type": "TERM_MATCH", "Field": "databaseEdition","Value": "Enterprise"},
+                {"Type": "TERM_MATCH", "Field": "databaseEngine","Value": "MySQL"},
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
-                {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license'},               
+                #{'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license'},               
                 ]
         if find_whole_word(["GP2-Storage"], usagevalue):
             filters1.pop()
@@ -101,7 +112,13 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
             filters1.append({"Type": "TERM_MATCH", "Field": "volumeName","Value": "gp3"})            
         elif find_whole_word(["PIOPS-Storage"], usagevalue):
             filters1.pop()
-            filters1.append({"Type": "TERM_MATCH", "Field": "volumeName","Value": "io1"})        
+            filters1.append({"Type": "TERM_MATCH", "Field": "volumeName","Value": "io1"})                        
+        elif  usagevalue in ['UGW1-RDS:PIOPS','UGW1-RDS:ChargedBackupUsage','UGW1-RDS:Multi-AZ-PIOPS']:
+            filters1.clear()
+            filters1 =[{"Type": "TERM_MATCH", 'Field': "databaseEngine","Value": "MySQL"},
+                       {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
+                       {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue}
+                       ]
     elif find_whole_word(['Aurora'], usagevalue) :
         filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
@@ -113,7 +130,7 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
     elif find_whole_word(["Fargate"], usagecode):
         filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
-                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue.replace("SpotUsage", "")},
                 #{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region_name},
                 #{'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': instance_type},
                 #{'Type': 'TERM_MATCH', 'Field': 'tenancy', 'Value': tenancy},
@@ -127,8 +144,10 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
         pass
     
     try:
-        pricing_client = boto3.client('pricing', region_name=region_name) #config=config)
+        pricing_client = boto3.client('pricing', region_name=region_name)
         response = pricing_client.get_products(ServiceCode=ServiceCode, Filters=filters1)
+        
+            
         #with open("data.json", "w") as file:
         #    json.dump(response, file ,indent=4)
         #print(json.dumps(response))
@@ -137,18 +156,10 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
 
             for on_demand in price['terms']['OnDemand'].values():
                 for price_dimensions in on_demand['priceDimensions'].values():
-                    return(price_dimensions['pricePerUnit']['USD'])
-                #print ({
-                #        'usagetype' : usagetype,
-                        #'region': region_name,
-                        #'os': os,
-                        #'preinstalled_software': preinstalled_software,
-                        #'tenancy': tenancy,
-                        #'byol': byol,
-                #        'price': price_dimensions['pricePerUnit']['USD']}
-                        #'effective': on_demand['effectiveDate'],
-                        #'description': price_dimensions['description']}
-                #    )
+                    if find_whole_word(["SpotUsage"], usagecode) and ServiceCode == 'AmazonECS':
+                        return((price_dimensions['pricePerUnit']['USD'] / 100) * 30)
+                    else:
+                        return(price_dimensions['pricePerUnit']['USD'])
     except Exception as e:
         #print(e)
         pass
