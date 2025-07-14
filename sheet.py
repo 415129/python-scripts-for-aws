@@ -9,7 +9,7 @@ from openpyxl.utils.cell import coordinate_from_string, column_index_from_string
 from botocore.exceptions import ClientError
 import re
 
-dedicatedinstance = {
+dedicatedfactor = {
     "UGW1-DedicatedUsage:r6i.large": "64",
     "UGW1-DedicatedUsage:m6i.2xlarge": "16",
     "UGW1-DedicatedUsage:r6i.8xlarge": "4",
@@ -207,7 +207,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                     elif find_whole_word(["HeavyUsage"], usagecode) and ServiceCode == 'AmazonRDS':
                         ec2heavyusuage(ServiceCode, filters1, region_name)
                     elif find_whole_word(["DedicatedUsage"], usagecode) and ServiceCode == 'AmazonEC2':
-                        return ((price_dimensions['pricePerUnit']['USD'] / dedicatedinstance[usagevalue]))
+                        return ((price_dimensions['pricePerUnit']['USD'] / dedicatedfactor[usagevalue]))
                     else:
                         return (price_dimensions['pricePerUnit']['USD'])
     except Exception as e:
