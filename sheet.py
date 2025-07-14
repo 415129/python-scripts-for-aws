@@ -68,6 +68,7 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
                 {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
     elif find_whole_word(["DataTransfer"], usagevalue) and ServiceCode == 'AmazonEC2':
+            filters1.clear()
             filters1 = [
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
                 ]
@@ -87,14 +88,10 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
             filters1 = [
                 {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': 'Storage'},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
-                #{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region_name},
-                #{'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': instance_type},
-                #{'Type': 'TERM_MATCH', 'Field': 'tenancy', 'Value': tenancy},
-                #{'Type': 'TERM_MATCH', 'Field': 'operatingSystem', 'Value': os},
-                #{'Type': 'TERM_MATCH', 'Field': 'preInstalledSw','Value': preinstalled_software},
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
-                #{'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
                 ]
+            if find_whole_word(["VolumeIOUsage","VolumeP-Throughput"], usagevalue):
+                filters1.pop(0)
     elif find_whole_word(["RDS","DataTransfer","Multi-AZUsage","InstanceUsage","HeavyUsage"], usagecode) :
         filters1 = [
                 #{'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
@@ -147,7 +144,8 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
         if find_whole_word(["Global-Bucket-Hrs-FreeTier"], usagevalue):
             filters1.pop(0)
         elif find_whole_word(["Tier4"], usagevalue):
-            filters1.append([{'Type': 'TERM_MATCH', 'Field': 'groupDescription','Value': "Lifecycle Transition Requests into Intelligent-Tiering"}])
+            #filters1.pop(0)
+            filters1.append([{'Type': 'TERM_MATCH', 'Field': 'groupDescription','Value': "Lifecycle Transition Requests into Intelligent-Tiering"},])
     elif ServiceCode == 'AmazonCloudWatch':
         filters1 = [
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
