@@ -144,9 +144,22 @@ def current_price(ServiceCode,usagecode,regionCode,usagevalue, byol='Bring your 
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
                 ]
+        if find_whole_word(["Global-Bucket-Hrs-FreeTier"], usagevalue):
+            filters1.pop(0)
+        elif find_whole_word(["Tier4"], usagevalue):
+            filters1.append([{'Type': 'TERM_MATCH', 'Field': 'groupDescription','Value': "Lifecycle Transition Requests into Intelligent-Tiering"}])
+    elif ServiceCode == 'AmazonCloudWatch':
+        filters1 = [
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
+                ]
+    elif ServiceCode == 'AmazonCloudWatch':
+        filters1 = [
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
+                ]
     else:
-        #print('Filter not matching')
-        pass
+        filters1 = [
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
+                ]
     
     try:
         pricing_client = boto3.client('pricing', region_name=region_name)
