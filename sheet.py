@@ -96,11 +96,11 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {"Type": "TERM_MATCH", "Field": "preInstalledSw","Value": "NA"},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
         ]
-    elif find_whole_word(["DataTransfer"], usagevalue) and ServiceCode == 'AmazonEC2':
-        filters1.clear()
-        filters1 = [
-            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
-        ]
+    # elif find_whole_word(["DataTransfer"], usagevalue) and ServiceCode == 'AmazonEC2':
+    #     filters1.clear()
+    #     filters1 = [
+    #         {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
+    #     ]
     elif find_whole_word(["SnapshotUsage", "CPUCredits", "VolumeP-IOPS"], usagevalue):
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
@@ -156,7 +156,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
             # {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
         ]
-    elif ServiceCode == 'AmazonS3':
+    elif ServiceCode == 'AmazonS3' and not find_whole_word(["DataTransfer","In-Bytes","Out-Bytes"], usagevalue):
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
@@ -177,8 +177,8 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
         ]
 
-    #print(ServiceCode, usagecode, regionCode, usagevalue)
-    #print(filters1)
+    print(ServiceCode, usagecode, regionCode, usagevalue)
+    print(filters1)
     try:
         pricing_client = boto3.client('pricing', region_name=region_name)
         response = pricing_client.get_products(ServiceCode=ServiceCode, Filters=filters1)
@@ -204,7 +204,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
 
 if __name__ == "__main__":
     # filename = 'MonthlyUsage.xlsx'
-    filename = 'MonthlyUsageReport-Multipleaccounts-scrubbed.xlsx'
+    filename = 'MonthlyUsageReport-Multipleaccounts-scrubbed1.xlsx'
     wb = load_workbook(filename)
     ws = wb.active
 
