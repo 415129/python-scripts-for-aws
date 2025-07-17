@@ -89,7 +89,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         ]
     elif find_whole_word(["DedicatedUsage"], usagecode):
         filters1 = [
-            {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'Reserved'},
+            {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
             {'Type': 'TERM_MATCH', 'Field': 'tenancy', 'Value': 'Dedicated'},
             {'Type': 'TERM_MATCH', 'Field': 'operatingSystem', 'Value': os},
@@ -114,25 +114,16 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         ]
         if find_whole_word(["VolumeIOUsage", "VolumeP-Throughput"], usagevalue):
             filters1.pop(0)
-    elif find_whole_word(["RDS", "DataTransfer", "Multi-AZUsage", "InstanceUsage", "HeavyUsage"], usagecode):
+    elif find_whole_word(["RDS", "Multi-AZUsage", "InstanceUsage", "HeavyUsage","Storage"], usagecode):
         filters1 = [
             # {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
-            {'Type': 'TERM_MATCH', 'Field': 'usagetype',
-                'Value': usagevalue.replace("HeavyUsage", "InstanceUsage")},
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue.replace("HeavyUsage", "InstanceUsage")},
             # {"Type": "TERM_MATCH", "Field": "databaseEdition","Value": "Enterprise"},
             {"Type": "TERM_MATCH", "Field": "databaseEngine", "Value": "MySQL"},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
             # {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license'},
         ]
-        if find_whole_word(["GP2-Storage"], usagevalue):
-            filters1.pop()
-            filters1.append(
-                {"Type": "TERM_MATCH", "Field": "volumeName", "Value": "gp2"})
-        elif find_whole_word(["GP3-Storage"], usagevalue):
-            filters1.pop()
-            filters1.append(
-                {"Type": "TERM_MATCH", "Field": "volumeName", "Value": "gp3"})
-        elif find_whole_word(["PIOPS-Storage"], usagevalue):
+        if find_whole_word(["PIOPS-Storage"], usagevalue):
             filters1.pop()
             filters1.append(
                 {"Type": "TERM_MATCH", "Field": "volumeName", "Value": "io1"})
@@ -176,6 +167,11 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             # filters1.pop(0)
             filters1.append({'Type': 'TERM_MATCH', 'Field': 'groupDescription',
                             'Value': "Lifecycle Transition Requests into Intelligent-Tiering"},)
+    elif find_whole_word(["DataTransfer","In-Bytes","Out-Bytes"], usagevalue):
+        ServiceCode="AWSDataTransfer"
+        filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue}
+        ]
     else:
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
@@ -196,8 +192,8 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                         return ((price_dimensions['pricePerUnit']['USD'] / 100) * 30)
                     elif find_whole_word(["HeavyUsage"], usagecode) and ServiceCode == 'AmazonRDS':
                         return(rdsheavyusuage(ServiceCode, filters1, region_name))
-                    elif find_whole_word(["DedicatedUsage"], usagecode) and ServiceCode == 'AmazonEC2':
-                        return(ec2dedicatedusuage(ServiceCode, filters1, region_name,usagevalue))
+                    #elif find_whole_word(["DedicatedUsage"], usagecode) and ServiceCode == 'AmazonEC2':
+                    #    return(ec2dedicatedusuage(ServiceCode, filters1, region_name,usagevalue))
                     else:
                         #print(price_dimensions)
                         return (price_dimensions['pricePerUnit']['USD'])
