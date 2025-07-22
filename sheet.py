@@ -114,7 +114,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         ]
         if find_whole_word(["VolumeIOUsage", "VolumeP-Throughput"], usagevalue):
             filters1.pop(0)
-    elif find_whole_word(["RDS", "Multi-AZUsage", "InstanceUsage", "HeavyUsage","Storage"], usagecode):
+    elif find_whole_word(["RDS", "Multi-AZUsage", "InstanceUsage", "HeavyUsage","Storage"], usagecode) and ServiceCode == 'AmazonRDS':
         filters1 = [
             # {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
             {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue.replace("HeavyUsage", "InstanceUsage")},
