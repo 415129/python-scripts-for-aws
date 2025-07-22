@@ -125,8 +125,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         ]
         if find_whole_word(["PIOPS-Storage"], usagevalue):
             filters1.pop()
-            filters1.append(
-                {"Type": "TERM_MATCH", "Field": "volumeName", "Value": "io1"})
+            #filters1.append({"Type": "TERM_MATCH", "Field": "volumeName", "Value": "io1"})
         elif usagevalue in ['UGW1-RDS:PIOPS', 'UGW1-RDS:ChargedBackupUsage', 'UGW1-RDS:Multi-AZ-PIOPS']:
             filters1.clear()
             filters1 = [{"Type": "TERM_MATCH", 'Field': "databaseEngine", "Value": "MySQL"},
@@ -171,6 +170,11 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         ServiceCode="AWSDataTransfer"
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue}
+        ]
+    elif find_whole_word(["Resource-Operation-Count"], usagevalue) and ServiceCode == 'AWSCloudFormation':
+        ServiceCode="AWSCloudFormation"
+        filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("Resource-Operation-Count", "Resource-Invocation-Count")}
         ]
     else:
         filters1 = [
