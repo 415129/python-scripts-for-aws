@@ -181,8 +181,8 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
         ]
 
-    print(ServiceCode, usagecode, regionCode, usagevalue)
-    print(filters1)
+    #print(ServiceCode, usagecode, regionCode, usagevalue)
+    #print(filters1)
     try:
         pricing_client = boto3.client('pricing', region_name=region_name)
         response = pricing_client.get_products(ServiceCode=ServiceCode, Filters=filters1)
@@ -208,7 +208,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
 
 if __name__ == "__main__":
     # filename = 'MonthlyUsage.xlsx'
-    filename = 'MonthlyUsageReport-Multipleaccounts-scrubbed1.xlsx'
+    filename = 'MonthlyUsageReport-Multipleaccounts-scrubbed.xlsx'
     wb = load_workbook(filename)
     ws = wb.active
 
