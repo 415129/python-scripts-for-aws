@@ -1,3 +1,5 @@
+# UGW1-IATimedStorage-ET-SmallFiles --> changed to EUC2-IATimedStorage-ET-SmallFiles
+
 import boto3
 import json
 import ast
@@ -96,11 +98,6 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {"Type": "TERM_MATCH", "Field": "preInstalledSw","Value": "NA"},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
         ]
-    # elif find_whole_word(["DataTransfer"], usagevalue) and ServiceCode == 'AmazonEC2':
-    #     filters1.clear()
-    #     filters1 = [
-    #         {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
-    #     ]
     elif find_whole_word(["SnapshotUsage", "CPUCredits", "VolumeP-IOPS"], usagevalue):
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
@@ -134,6 +131,12 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                         {'Type': 'TERM_MATCH', 'Field': 'usagetype',
                             'Value': usagevalue}
                         ]
+        elif usagevalue in ['UGW1-InstanceUsage:db.r6i.2xl']:
+            filters1.clear()
+            filters1 = [{"Type": "TERM_MATCH", 'Field': "databaseEngine", "Value": "Aurora MySQL"},
+                        {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
+                        {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue}
+                        ]
     elif find_whole_word(['Aurora'], usagevalue):
         filters1 = [
             # {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
@@ -143,10 +146,10 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
             # {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
         ]
-    elif find_whole_word(["Fargate"], usagecode):
+    elif find_whole_word(["Fargate"], usagecode) and ServiceCode == 'AmazonECS':
         filters1 = [
             # {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
-            {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue.replace("SpotUsage", "")},
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue.replace("SpotUsage-", "")},
             # {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region_name},
             # {'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': instance_type},
             # {'Type': 'TERM_MATCH', 'Field': 'tenancy', 'Value': tenancy},
@@ -158,7 +161,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
     elif ServiceCode == 'AmazonS3' and not find_whole_word(["DataTransfer","In-Bytes","Out-Bytes"], usagevalue):
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
-            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("GDA-ByteHrs", "GDA-Staging")},
         ]
         if find_whole_word(["Global-Bucket-Hrs-FreeTier"], usagevalue):
             filters1.pop(0)
@@ -166,10 +169,15 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             # filters1.pop(0)
             filters1.append({'Type': 'TERM_MATCH', 'Field': 'groupDescription',
                             'Value': "Lifecycle Transition Requests into Intelligent-Tiering"},)
+    elif ServiceCode == 'AmazonEFS':
+        filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': re.sub(r'ET-SmallFiles|SmallFiles', 'ByteHrs', usagevalue).replace('UGW1-ArchiveEarlyDelete-ByteHrs', 'UGW1-ArchiveTimedStorage-ByteHrs')},
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
+        ]
     elif find_whole_word(["DataTransfer","In-Bytes","Out-Bytes"], usagevalue):
         ServiceCode="AWSDataTransfer"
         filters1 = [
-            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue}
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("AZ","xAZ")}
         ]
     elif find_whole_word(["Resource-Operation-Count"], usagevalue) and ServiceCode == 'AWSCloudFormation':
         ServiceCode="AWSCloudFormation"
@@ -193,7 +201,8 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             for on_demand in price['terms']['OnDemand'].values():
                 for price_dimensions in on_demand['priceDimensions'].values():
                     if find_whole_word(["SpotUsage"], usagecode) and ServiceCode == 'AmazonECS':
-                        return ((price_dimensions['pricePerUnit']['USD'] / 100) * 30)
+                        print(f'Found SpotUsage for {ServiceCode} {usagecode}')
+                        return ((float(price_dimensions['pricePerUnit']['USD']) / 100) * 30)     # same for ec2
                     elif find_whole_word(["HeavyUsage"], usagecode) and ServiceCode == 'AmazonRDS':
                         return(rdsheavyusuage(ServiceCode, filters1, region_name))
                     #elif find_whole_word(["DedicatedUsage"], usagecode) and ServiceCode == 'AmazonEC2':
@@ -208,7 +217,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
 
 if __name__ == "__main__":
     # filename = 'MonthlyUsage.xlsx'
-    filename = 'MonthlyUsageReport-Multipleaccounts-scrubbed.xlsx'
+    filename = 'MonthlyUsageReport-Multipleaccounts-scrubbed2.xlsx'
     wb = load_workbook(filename)
     ws = wb.active
 
