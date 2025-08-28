@@ -158,9 +158,9 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
             # {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
         ]
-    elif ServiceCode == 'AmazonS3' and not find_whole_word(["DataTransfer","In-Bytes","Out-Bytes"], usagevalue):
+    elif ServiceCode == 'AmazonS3' and not find_whole_word(["DataTransfer","In-Bytes","Out-Bytes","Requests","TimedStorage-ByteHrs"], usagevalue):
         filters1 = [
-            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode.replace("global", "us-east-1")},
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("GDA-ByteHrs", "GDA-Staging")},
         ]
         if find_whole_word(["Global-Bucket-Hrs-FreeTier"], usagevalue):
@@ -205,6 +205,12 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                         return ((float(price_dimensions['pricePerUnit']['USD']) / 100) * 30)     # same for ec2
                     elif find_whole_word(["HeavyUsage"], usagecode) and ServiceCode == 'AmazonRDS':
                         return(rdsheavyusuage(ServiceCode, filters1, region_name))
+                    elif ServiceCode in ["ComputeSavingsPlans","EC2InstanceSavingsPlans","MachineLearningSavingsPlans"]:
+                        return('NA')
+                    elif ServiceCode =="AmazonPinpoint":
+                        return(0.03)
+                    elif not ServiceCode.startswith("Amazon"):
+                        return('Marketplace')
                     #elif find_whole_word(["DedicatedUsage"], usagecode) and ServiceCode == 'AmazonEC2':
                     #    return(ec2dedicatedusuage(ServiceCode, filters1, region_name,usagevalue))
                     else:
