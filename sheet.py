@@ -89,6 +89,14 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'licenseModel',
                 'Value': 'Bring your own license' if byol else 'No License required'},
         ]
+    elif ServiceCode == 'AmazonEC2' and find_whole_word(["SpotUsage"], usagecode):
+        filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'Spot'},
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("SpotUsage-", "")},
+            {'Type': 'TERM_MATCH', 'Field': 'operatingSystem', 'Value': os},
+            {'Type': 'TERM_MATCH', 'Field': 'preInstalledSw','Value': preinstalled_software},
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode}
+        ]
     elif find_whole_word(["DedicatedUsage"], usagecode):
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
@@ -111,7 +119,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         ]
         if find_whole_word(["VolumeIOUsage", "VolumeP-Throughput"], usagevalue):
             filters1.pop(0)
-    elif find_whole_word(["RDS", "Multi-AZUsage", "InstanceUsage", "HeavyUsage","Storage"], usagecode) and ServiceCode == 'AmazonRDS':
+    elif find_whole_word(["RDS", "Multi-AZUsage", "InstanceUsage", "HeavyUsage","Storage","Mirror"], usagecode) and ServiceCode == 'AmazonRDS':
         filters1 = [
             # {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
             {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue.replace("HeavyUsage", "InstanceUsage")},
@@ -137,6 +145,12 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                         {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
                         {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue}
                         ]
+        elif find_whole_word(["Mirror"], usagevalue):
+            filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue},
+            {"Type": "TERM_MATCH", "Field": "databaseEngine", "Value": "Any"},
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode}
+        ]
     elif find_whole_word(['Aurora'], usagevalue):
         filters1 = [
             # {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
@@ -192,9 +206,16 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
     #print(ServiceCode, usagecode, regionCode, usagevalue)
     #print(filters1)
     try:
+        if ServiceCode =="AmazonPinpoint":
+            return(0.03)
+        elif not ServiceCode.startswith("Amazon"):
+            return('Marketplace')
+        elif ServiceCode in ["ComputeSavingsPlans","EC2InstanceSavingsPlans","MachineLearningSavingsPlans"]:
+            return('SavingsPlans')
         pricing_client = boto3.client('pricing', region_name=region_name)
         response = pricing_client.get_products(ServiceCode=ServiceCode, Filters=filters1)
         #print(json.dumps(response))
+
         for price in response['PriceList']:
             price = json.loads(price)
             
@@ -205,12 +226,6 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                         return ((float(price_dimensions['pricePerUnit']['USD']) / 100) * 30)     # same for ec2
                     elif find_whole_word(["HeavyUsage"], usagecode) and ServiceCode == 'AmazonRDS':
                         return(rdsheavyusuage(ServiceCode, filters1, region_name))
-                    elif ServiceCode in ["ComputeSavingsPlans","EC2InstanceSavingsPlans","MachineLearningSavingsPlans"]:
-                        return('NA')
-                    elif ServiceCode =="AmazonPinpoint":
-                        return(0.03)
-                    elif not ServiceCode.startswith("Amazon"):
-                        return('Marketplace')
                     #elif find_whole_word(["DedicatedUsage"], usagecode) and ServiceCode == 'AmazonEC2':
                     #    return(ec2dedicatedusuage(ServiceCode, filters1, region_name,usagevalue))
                     else:
@@ -264,7 +279,7 @@ if __name__ == "__main__":
         for cell in row_cells:
             # print(cell.row)
             ws.cell(row=cell.row, column=9).value = unitprice
-
+        #print(unitprice)
         if unitprice:
             print(f'Unit Price for Service {ServiceCode} {usagevalue} is {unitprice}')
     wb.save(filename)
