@@ -195,7 +195,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("Resource-Operation-Count", "Resource-Invocation-Count")}
         ]
     elif ServiceCode == 'AmazonSageMaker':
-        if usagecode .startswith("ml"):
+        if usagevalue.split(':')[1].startswith("ml"):
             new_regionCode = regionCode.replace("gov-", "")
             filters1 = [
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': 'us-east-1'},
@@ -216,8 +216,8 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
     try:
         if ServiceCode == "AmazonPinpoint":
             return(0.03)
-        elif not ServiceCode.startswith("Amazon"):
-            return('Marketplace')
+        #elif not ServiceCode.startswith("Amazon"):
+        #    return('Marketplace')
         elif ServiceCode in ["ComputeSavingsPlans","EC2InstanceSavingsPlans","MachineLearningSavingsPlans"]:
             return('SavingsPlans')
         pricing_client = boto3.client('pricing', region_name=region_name)
@@ -235,7 +235,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                     else:
                         found_price = price_dimensions['pricePerUnit']['USD']
                     if found_price is not None:
-                        print(f'Found price for {ServiceCode} {usagevalue} in {regionCode} is {found_price}')
+                        #print(f'Found price for {ServiceCode} {usagevalue} in {regionCode} is {found_price}')
                         return found_price
         # If no price found and ServiceCode is AmazonSageMaker or AmazonEC2, try removing 'gov-' from regionCode and retry
         if ServiceCode in ["AmazonSageMaker", "AmazonEC2"] and not found_price and regionCode.startswith("us-gov"):
@@ -291,7 +291,7 @@ if __name__ == "__main__":
             if colname.value == 'Line Item Usage Type':
                 t1 = cell.value
                 usagevalue = t1
-                usagecode = t1.split(':')[1]
+                usagecode = t1.split(':')[0]
             if colname.value == 'Product Region':
                 regionCode = cell.value
         unitprice = current_price(ServiceCode, usagecode, regionCode, usagevalue)
