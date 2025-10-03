@@ -140,10 +140,8 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         elif usagevalue in ['UGW1-RDS:PIOPS', 'UGW1-RDS:ChargedBackupUsage', 'UGW1-RDS:Multi-AZ-PIOPS']:
             filters1.clear()
             filters1 = [{"Type": "TERM_MATCH", 'Field': "databaseEngine", "Value": "MySQL"},
-                        {'Type': 'TERM_MATCH', 'Field': 'regionCode',
-                            'Value': regionCode},
-                        {'Type': 'TERM_MATCH', 'Field': 'usagetype',
-                            'Value': usagevalue}
+                        {'Type': 'TERM_MATCH', 'Field': 'regionCode','Value': regionCode},
+                        {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue}
                         ]
         elif usagevalue in ['UGW1-InstanceUsage:db.r6i.2xl']:
             filters1.clear()
@@ -160,8 +158,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
     elif find_whole_word(['Aurora'], usagevalue):
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
-            {"Type": "TERM_MATCH", "Field": "databaseEngine", "Value": "Aurora MySQL" if find_whole_word(
-                ['Aurora:BackupUsage', 'ServerlessV2Usage'], usagevalue) else "Any"},
+            {"Type": "TERM_MATCH", "Field": "databaseEngine", "Value": "Aurora MySQL" if find_whole_word(['Aurora:BackupUsage', 'ServerlessV2Usage'], usagevalue) else "Any"},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
         ]
     elif find_whole_word(["Fargate"], usagecode) and ServiceCode == 'AmazonECS':
@@ -177,8 +174,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         if find_whole_word(["Global-Bucket-Hrs-FreeTier"], usagevalue):
             filters1.pop(0)
         elif find_whole_word(["Tier4"], usagevalue):
-            filters1.append({'Type': 'TERM_MATCH', 'Field': 'groupDescription',
-                            'Value': "Lifecycle Transition Requests into Intelligent-Tiering"},)
+            filters1.append({'Type': 'TERM_MATCH', 'Field': 'groupDescription','Value': "Lifecycle Transition Requests into Intelligent-Tiering"},)
     elif ServiceCode == 'AmazonEFS':
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': re.sub(r'ET-SmallFiles|SmallFiles', 'ByteHrs', usagevalue).replace('UGW1-ArchiveEarlyDelete-ByteHrs', 'UGW1-ArchiveTimedStorage-ByteHrs')},
@@ -186,8 +182,10 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         ]
     elif find_whole_word(["DataTransfer","In-Bytes","Out-Bytes"], usagevalue):
         ServiceCode="AWSDataTransfer"
+        # replace AZ with xAZ but do NOT change existing xAZ occurrences
+        safe_usagevalue = re.sub(r'(?<!x)AZ', 'xAZ', usagevalue)
         filters1 = [
-            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("AZ","xAZ")}
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': safe_usagevalue}
         ]
     elif find_whole_word(["Resource-Operation-Count"], usagevalue) and ServiceCode == 'AWSCloudFormation':
         ServiceCode="AWSCloudFormation"
@@ -216,8 +214,9 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
     try:
         if ServiceCode == "AmazonPinpoint":
             return(0.03)
-        #elif not ServiceCode.startswith("Amazon"):
-        #    return('Marketplace')
+        elif not ServiceCode.startswith("Amazon"):
+            print(f'Skipping non-Amazon service: {ServiceCode}')
+            return('Marketplace')
         elif ServiceCode in ["ComputeSavingsPlans","EC2InstanceSavingsPlans","MachineLearningSavingsPlans"]:
             return('SavingsPlans')
         pricing_client = boto3.client('pricing', region_name=region_name)
@@ -240,10 +239,10 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         # If no price found and ServiceCode is AmazonSageMaker or AmazonEC2, try removing 'gov-' from regionCode and retry
         if ServiceCode in ["AmazonSageMaker", "AmazonEC2"] and not found_price and regionCode.startswith("us-gov"):
             new_regionCode = regionCode.replace("gov-", "")
-            print(f'Trying with modified regionCode: {new_regionCode} for ServiceCode: {ServiceCode}')
+            print(f'Trying with modified regionCode: {new_regionCode} for ServiceCode: {ServiceCode} and usagevalue: {usagevalue}')
             if ServiceCode == "AmazonSageMaker":                
                 filters1 = [
-                    {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': 'ca-central-1'},
+                    {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_regionCode},
                     {'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': usagevalue}
                 ]
             elif ServiceCode == "AmazonEC2":
@@ -267,11 +266,11 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         pass
 
 if __name__ == "__main__":
-    default_filename = 'MonthlyUsageReport-Multipleaccounts-scrubbed.xlsx'
+    default_filename = 'MonthlyUsageReport-Multipleaccounts-scrubbed1.xlsx'
     filename = input(f"Please enter full filename path (press Enter to use default: {default_filename}): ").strip()
     if not filename:
         filename = default_filename
-
+    #filename = 'MonthlyUsageReport-Multipleaccounts-scrubbed.xlsx'
     wb = load_workbook(filename)
     ws = wb.active
 
