@@ -193,19 +193,26 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("Resource-Operation-Count", "Resource-Invocation-Count")}
         ]
     elif ServiceCode == 'AmazonSageMaker':
-        if usagevalue.split(':')[1].startswith("ml"):
-            new_regionCode = regionCode.replace("gov-", "")
-            filters1 = [
-                {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': 'us-east-1'},
-                {'Type': 'TERM_MATCH', 'Field': 'component', 'Value': 'Notebook'},
-                {'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': usagecode + '-Notebook'}
-            ]
+        instance_type_part1 = usagevalue.split(':')[0].split('-')[-1]
+        instance_type_part2 = usagevalue.split(':')[-1]
+        # Determine component from usagecode (e.g., Notebook, Host, Training)
+        if instance_type_part1 == 'Notebk':            
+            component = "Notebook" # Default
+        elif instance_type_part1 == 'Host':
+            component = "Hosting"
+        elif instance_type_part1 == 'Train':
+            component = "Training"
+        elif instance_type_part1 == 'Processing':
+            component = "Processing"
         else:
-            filters1 = [
-                {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
-                {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue}
-            ]
-        # If no price found
+            component = "Notebook" # Fallback
+        if regionCode.startswith("us-gov"):
+            new_regionCode = regionCode.replace("gov-", "")
+        filters1 = [
+                {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_regionCode},
+                {'Type': 'TERM_MATCH', 'Field': 'component', 'Value': component},
+                {'Type': 'TERM_MATCH', 'Field': 'instanceName', 'Value': instance_type_part2}
+            ]   
     else:
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
@@ -243,7 +250,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             if ServiceCode == "AmazonSageMaker":                
                 filters1 = [
                     {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_regionCode},
-                    {'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': usagevalue}
+                    {'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': usagevalue.split(':')[-1]}
                 ]
             elif ServiceCode == "AmazonEC2":
                 filters1 = [
