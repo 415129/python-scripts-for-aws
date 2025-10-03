@@ -206,13 +206,31 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             component = "Processing"
         else:
             component = "Notebook" # Fallback
-        if regionCode.startswith("us-gov"):
-            new_regionCode = regionCode.replace("gov-", "")
+        
+        if instance_type_part2.startswith("VolumeUsage"):
+            filters1 = [
+                {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': "Storage"},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue}
+            ]
+        if instance_type_part2.startswith("Studio"):
+            filters1 = [
+                {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': "ML Instance"},
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue}
+            ]
+        else:
+            
+            if regionCode.startswith("us-gov"):
+                new_regionCode = regionCode.replace("gov-", "")
+            filters1 = [
+                    {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_regionCode},
+                    {'Type': 'TERM_MATCH', 'Field': 'component', 'Value': component},
+                    {'Type': 'TERM_MATCH', 'Field': 'instanceName', 'Value': instance_type_part2}
+                ]   
+    elif ServiceCode == "CodeBuild":
         filters1 = [
-                {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_regionCode},
-                {'Type': 'TERM_MATCH', 'Field': 'component', 'Value': component},
-                {'Type': 'TERM_MATCH', 'Field': 'instanceName', 'Value': instance_type_part2}
-            ]   
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
+        ]
     else:
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
@@ -221,7 +239,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
     try:
         if ServiceCode == "AmazonPinpoint":
             return(0.03)
-        elif not ServiceCode.startswith("Amazon"):
+        elif not ServiceCode.upper().startswith("A"):
             print(f'Skipping non-Amazon service: {ServiceCode}')
             return('Marketplace')
         elif ServiceCode in ["ComputeSavingsPlans","EC2InstanceSavingsPlans","MachineLearningSavingsPlans"]:
