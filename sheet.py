@@ -166,10 +166,11 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'usagetype','Value': usagevalue.replace("SpotUsage-", "")},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
         ]
-    elif ServiceCode == 'AmazonS3' and not find_whole_word(["DataTransfer","In-Bytes","Out-Bytes","Requests","TimedStorage-ByteHrs"], usagevalue):
+    elif ServiceCode == 'AmazonS3' and not find_whole_word(["DataTransfer","In-Bytes","Out-Bytes","Requests","TimedStorage-ByteHrs","Monitoring-Automation"], usagevalue):
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode.replace("global", "us-east-1")},
             #{'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("GDA-ByteHrs", "GDA-Staging")},
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue}
         ]
         if find_whole_word(["Global-Bucket-Hrs-FreeTier"], usagevalue):
             filters1.pop(0)
@@ -243,7 +244,8 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
     try:
         if ServiceCode == "AmazonPinpoint":
             return(0.03)
-        elif not ServiceCode.upper().startswith("A"):
+        # Check for numeric ServiceCodes, which usually indicate a Marketplace product.
+        elif ServiceCode.startswith(tuple(str(i) for i in range(10))):
             print(f'Skipping non-Amazon service: {ServiceCode}')
             return('Marketplace')
         elif ServiceCode in ["ComputeSavingsPlans","EC2InstanceSavingsPlans","MachineLearningSavingsPlans"]:
