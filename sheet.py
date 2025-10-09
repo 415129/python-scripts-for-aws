@@ -169,7 +169,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
     elif ServiceCode == 'AmazonS3' and not find_whole_word(["DataTransfer","In-Bytes","Out-Bytes","Requests","TimedStorage-ByteHrs"], usagevalue):
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode.replace("global", "us-east-1")},
-            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("GDA-ByteHrs", "GDA-Staging")},
+            #{'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("GDA-ByteHrs", "GDA-Staging")},
         ]
         if find_whole_word(["Global-Bucket-Hrs-FreeTier"], usagevalue):
             filters1.pop(0)
@@ -195,15 +195,15 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
     elif ServiceCode == 'AmazonSageMaker':
         instance_type_part1 = usagevalue.split(':')[0].split('-')[-1]
         instance_type_part2 = usagevalue.split(':')[-1]
-        # Determine component from usagecode (e.g., Notebook, Host, Training)
+        # Determine component from usagecode (e.g., Notebook, Host, Training) UGW1-Studio: KernelGateway-ml.g4dn.xlarge
         if instance_type_part1 == 'Notebk':            
             component = "Notebook" # Default
-        elif instance_type_part1 == 'Host':
+        elif instance_type_part1 == 'Host' or instance_type_part1 == 'Hst':
             component = "Hosting"
         elif instance_type_part1 == 'Train':
             component = "Training"
-        elif instance_type_part1 == 'Processing':
-            component = "Processing"
+        elif instance_type_part1 == 'Studio':
+            component = "Studio-Notebook"
         else:
             component = "Notebook" # Fallback
         
@@ -212,20 +212,24 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                 {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': "Storage"},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue}
             ]
-        if instance_type_part2.startswith("Studio"):
+        elif instance_type_part2.startswith("Studio") or instance_type_part2.startswith("KernelGateway"):
             filters1 = [
                 {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': "ML Instance"},
                 {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue}
             ]
-        else:
-            
-            if regionCode.startswith("us-gov"):
-                new_regionCode = regionCode.replace("gov-", "")
+        elif instance_type_part1.startswith("Host"): #UGW1-Hosting:ml.g5.24xlarge
             filters1 = [
-                    {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_regionCode},
+                {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': "ML Instance"},
+                {'Type': 'TERM_MATCH', 'Field': 'component', 'Value': component},
+                {'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': instance_type_part2 + '-Hosting'},
+                {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode}
+            ]
+        else:
+            filters1 = [
+                    {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
                     {'Type': 'TERM_MATCH', 'Field': 'component', 'Value': component},
                     {'Type': 'TERM_MATCH', 'Field': 'instanceName', 'Value': instance_type_part2}
-                ]   
+                ]
     elif ServiceCode == "CodeBuild":
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
@@ -262,25 +266,16 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                         #print(f'Found price for {ServiceCode} {usagevalue} in {regionCode} is {found_price}')
                         return found_price
         # If no price found and ServiceCode is AmazonSageMaker or AmazonEC2, try removing 'gov-' from regionCode and retry
-        if ServiceCode in ["AmazonSageMaker", "AmazonEC2"] and not found_price and regionCode.startswith("us-gov"):
-            new_regionCode = regionCode.replace("gov-", "")
+        #if ServiceCode in ["AmazonSageMaker", "AmazonEC2"] and not found_price and regionCode.startswith("us-gov"):
+        if not found_price:
+            #new_regionCode = regionCode.replace("gov-", "")
+            new_regionCode = 'us-east-1'
             print(f'Trying with modified regionCode: {new_regionCode} for ServiceCode: {ServiceCode} and usagevalue: {usagevalue}')
-            if ServiceCode == "AmazonSageMaker":                
-                filters1 = [
-                    {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_regionCode},
-                    {'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': usagevalue.split(':')[-1]}
-                ]
-            elif ServiceCode == "AmazonEC2":
-                filters1 = [
-                    {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
-                    {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
-                    {'Type': 'TERM_MATCH', 'Field': 'tenancy', 'Value': tenancy},
-                    {'Type': 'TERM_MATCH', 'Field': 'operatingSystem', 'Value': os},
-                    {'Type': 'TERM_MATCH', 'Field': 'preInstalledSw','Value': preinstalled_software},
-                    {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_regionCode},
-                    {'Type': 'TERM_MATCH', 'Field': 'licenseModel','Value': 'Bring your own license' if byol else 'No License required'},
-                ]
-            response = pricing_client.get_products(ServiceCode=ServiceCode, Filters=filters1)
+            #if ServiceCode == "AmazonSageMaker":                
+                # Create a new list of filters, excluding the original regionCode filter.
+            newfilters = [f for f in filters1 if not (f.get('Field') == 'regionCode' and f.get('Value') == regionCode)]
+            newfilters.append({'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_regionCode})
+            response = pricing_client.get_products(ServiceCode=ServiceCode, Filters=newfilters)
             for price in response['PriceList']:
                 price = json.loads(price)
                 for on_demand in price['terms']['OnDemand'].values():
