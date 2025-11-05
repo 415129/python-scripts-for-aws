@@ -273,28 +273,44 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                     if found_price is not None:
                         #print(f'Found price for {ServiceCode} {usagevalue} in {regionCode} is {found_price}')
                         return found_price
-        # If no price found and ServiceCode is AmazonSageMaker or AmazonEC2, try removing 'gov-' from regionCode and retry
-        #if ServiceCode in ["AmazonSageMaker", "AmazonEC2"] and not found_price and regionCode.startswith("us-gov"):
-        if not found_price:
-            #new_regionCode = regionCode.replace("gov-", "")
-            new_regionCode = 'us-east-1'
-            print(f'Trying with modified regionCode: {new_regionCode} for ServiceCode: {ServiceCode} and usagevalue: {usagevalue}')
-            #if ServiceCode == "AmazonSageMaker":                
-                # Create a new list of filters, excluding the original regionCode filter.
-            newfilters = [f for f in filters1 if not (f.get('Field') == 'regionCode' and f.get('Value') == regionCode)]
-            newfilters.append({'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_regionCode})
-            response = pricing_client.get_products(ServiceCode=ServiceCode, Filters=newfilters)
-            for price in response['PriceList']:
-                price = json.loads(price)
-                for on_demand in price['terms']['OnDemand'].values():
-                    for price_dimensions in on_demand['priceDimensions'].values():
-                        return price_dimensions['pricePerUnit']['USD']
+        # If no price is found, and it's a gov region, try searching in other US regions.
+        if not found_price and regionCode.startswith("us-gov"):
+            us_regions_to_check = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2']
+            # Create a new list of filters, excluding the original regionCode filter.
+            new_filters = [f for f in filters1 if f.get('Field') != 'regionCode']
+            new_filters = [f for f in filters1 if f.get('Field') not in ['regionCode', 'usagetype']]
+
+            # Create a generic usage type by removing the regional prefix (e.g., UGE1-)
+            generic_usagevalue_parts = usagevalue.split('-', 1)
+            generic_usagevalue = usagevalue
+            if len(generic_usagevalue_parts) > 1:
+                generic_usagevalue = generic_usagevalue_parts[1]
+            new_filters.append({'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': f'%{generic_usagevalue}'})
+            generic_usagevalue = generic_usagevalue_parts[1] if len(generic_usagevalue_parts) > 1 else usagevalue
+            
+            # The pricing API doesn't support wildcards in usagetype filters.
+            # We will have to rely on the other filters being specific enough.
+            new_filters.append({'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': generic_usagevalue})
+            
+            for new_region in us_regions_to_check:
+                print(f'Price not found in {regionCode}. Trying with region: {new_region} for ServiceCode: {ServiceCode} and usagevalue: {usagevalue}')
+                print(f'Price not found in {regionCode}. Trying with region: {new_region} for ServiceCode: {ServiceCode} and generic usagevalue: {generic_usagevalue}')
+                region_filter = {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_region}
+                filters_with_new_region = new_filters + [region_filter]
+                filters_with_new_region = new_filters + [region_filter] # This creates a copy
+                
+                response = pricing_client.get_products(ServiceCode=ServiceCode, Filters=filters_with_new_region)
+                for price in response['PriceList']:
+                    price = json.loads(price)
+                    for on_demand in price['terms']['OnDemand'].values():
+                        for price_dimensions in on_demand['priceDimensions'].values():
+                            return price_dimensions['pricePerUnit']['USD']
     except Exception as e:
         print(e)
         pass
 
 if __name__ == "__main__":
-    default_filename = 'MonthlyUsageReport-Multipleaccounts-scrubbed1.xlsx'
+    default_filename = 'sheet32.xlsx'
     filename = input(f"Please enter full filename path (press Enter to use default: {default_filename}): ").strip()
     if not filename:
         filename = default_filename
