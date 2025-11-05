@@ -236,6 +236,12 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
         ]
+    elif ServiceCode == "AmazonElastiCache":
+        filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': "Cache Instance"},
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
+        ]
     else:
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
@@ -298,14 +304,15 @@ if __name__ == "__main__":
 
     max_row = ws.max_row
     max_col = ws.max_column
-    ws.insert_cols(max_col+1)
-    ws.cell(row=1, column=max_col+1).value = "UnitPrice"
+    unit_price_col_idx = max_col + 1
+    ws.insert_cols(unit_price_col_idx)
+    ws.cell(row=1, column=unit_price_col_idx).value = "UnitPrice"
     wb.save(filename)
 
     for row_cells in ws.iter_rows(min_row=2, max_row=max_row):
         counter = 0
         for i, cell in enumerate(row_cells):
-            counter += 1
+            counter += 1 # This will now be off by one for columns after the insertion, but it's only used for reading headers.
             colname = ws[get_column_letter(counter) + str(1)]
             if colname.value == 'Line Item Product Code':
                 ServiceCode = cell.value
@@ -315,9 +322,9 @@ if __name__ == "__main__":
                 usagecode = t1.split(':')[0]
             if colname.value == 'Product Region':
                 regionCode = cell.value
+        print(f'Fetching price for Service {ServiceCode} with Usage Type {usagevalue} in Region {regionCode}')
         unitprice = current_price(ServiceCode, usagecode, regionCode, usagevalue)
-        for cell in row_cells:
-            ws.cell(row=cell.row, column=9).value = unitprice
+        ws.cell(row=row_cells[0].row, column=unit_price_col_idx).value = unitprice
         if unitprice:
             print(f'Unit Price for Service {ServiceCode} {usagevalue} is {unitprice}')
     wb.save(filename)
