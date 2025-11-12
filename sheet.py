@@ -236,11 +236,13 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
         ]
-    elif ServiceCode == "AmazonElastiCache":
+    elif find_whole_word(["AmazonElastiCache",'AmazonElasticCache'], ServiceCode):
+        ServiceCode='AmazonElastiCache'
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': "Cache Instance"},
-            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
+            {'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': usagevalue.split('-')[-1].split(':')[-1]},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
+            {"Type": "TERM_MATCH", "Field": "cacheEngine","Value": "Redis"}
         ]
     else:
         filters1 = [
@@ -273,6 +275,24 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                     if found_price is not None:
                         #print(f'Found price for {ServiceCode} {usagevalue} in {regionCode} is {found_price}')
                         return found_price
+        if not found_price and ServiceCode == 'AmazonEC2':
+            print(f'Price not found for {ServiceCode} {usagevalue}. Retrying with generic BoxUsage.')
+            try:
+                instance_type = usagevalue.split(':')[-1]
+                new_usage_type = f'BoxUsage:{instance_type}'
+                new_filters = [
+                    {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': new_usage_type},
+                    {'Type': 'TERM_MATCH', 'Field': 'operatingSystem', 'Value': 'Linux'},
+                    {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': 'us-east-1'}
+                ]
+                response = pricing_client.get_products(ServiceCode=ServiceCode, Filters=new_filters)
+                for price in response['PriceList']:
+                    price = json.loads(price)
+                    for on_demand in price['terms']['OnDemand'].values():
+                        for price_dimensions in on_demand['priceDimensions'].values():
+                            return price_dimensions['pricePerUnit']['USD']
+            except Exception as e:
+                print(f"Error during EC2 BoxUsage retry: {e}")
         # If no price is found, and it's a gov region, try searching in other US regions.
         if not found_price and regionCode.startswith("us-gov"):
             us_regions_to_check = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2']
@@ -285,7 +305,6 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             generic_usagevalue = usagevalue
             if len(generic_usagevalue_parts) > 1:
                 generic_usagevalue = generic_usagevalue_parts[1]
-            new_filters.append({'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': f'%{generic_usagevalue}'})
             generic_usagevalue = generic_usagevalue_parts[1] if len(generic_usagevalue_parts) > 1 else usagevalue
             
             # The pricing API doesn't support wildcards in usagetype filters.
@@ -293,12 +312,12 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             new_filters.append({'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': generic_usagevalue})
             
             for new_region in us_regions_to_check:
-                print(f'Price not found in {regionCode}. Trying with region: {new_region} for ServiceCode: {ServiceCode} and usagevalue: {usagevalue}')
+                #print(f'Price not found in {regionCode}. Trying with region: {new_region} for ServiceCode: {ServiceCode} and usagevalue: {usagevalue}')
                 print(f'Price not found in {regionCode}. Trying with region: {new_region} for ServiceCode: {ServiceCode} and generic usagevalue: {generic_usagevalue}')
                 region_filter = {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_region}
                 filters_with_new_region = new_filters + [region_filter]
                 filters_with_new_region = new_filters + [region_filter] # This creates a copy
-                
+                #print(filters_with_new_region)
                 response = pricing_client.get_products(ServiceCode=ServiceCode, Filters=filters_with_new_region)
                 for price in response['PriceList']:
                     price = json.loads(price)
