@@ -181,7 +181,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': re.sub(r'ET-SmallFiles|SmallFiles', 'ByteHrs', usagevalue).replace('UGW1-ArchiveEarlyDelete-ByteHrs', 'UGW1-ArchiveTimedStorage-ByteHrs')},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
         ]
-    elif find_whole_word(["DataTransfer","In-Bytes","Out-Bytes"], usagevalue):
+    elif find_whole_word(["DataTransfer","In-Bytes","Out-Bytes"], usagevalue) and ServiceCode == "AWSDataTransfer":
         ServiceCode="AWSDataTransfer"
         # replace AZ with xAZ but do NOT change existing xAZ occurrences
         safe_usagevalue = re.sub(r'(?<!x)AZ', 'xAZ', usagevalue)
@@ -244,6 +244,28 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
             {"Type": "TERM_MATCH", "Field": "cacheEngine","Value": "Redis"}
         ]
+    elif ServiceCode == 'AWSGlobalAccelerator':
+        fromloc = usagevalue.split('-')[0]
+        if fromloc != 'Global':
+            filters1 = [
+            {"Type": "TERM_MATCH", "Field": "usagetype","Value": usagevalue},  
+        ]
+        else:
+            filters1 = [
+                {"Type": "TERM_MATCH", "Field": "usagetype","Value": usagevalue},
+                {"Type": "TERM_MATCH", "Field": "dominantnondominant","Value": "Dominant"},
+                {"Type": "TERM_MATCH", "Field": "fromLocation","Value": fromloc}   
+            ]
+    elif ServiceCode == 'AmazonInspector':
+        filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': "network-assessments"},
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': 'us-east-1'},
+        ]
+    elif ServiceCode =='AmazonSQS':
+        filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("FIFO", "Standard")},
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
+        ]       
     else:
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
@@ -313,7 +335,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             
             for new_region in us_regions_to_check:
                 #print(f'Price not found in {regionCode}. Trying with region: {new_region} for ServiceCode: {ServiceCode} and usagevalue: {usagevalue}')
-                print(f'Price not found in {regionCode}. Trying with region: {new_region} for ServiceCode: {ServiceCode} and generic usagevalue: {generic_usagevalue}')
+                #print(f'Price not found in {regionCode}. Trying with region: {new_region} for ServiceCode: {ServiceCode} and generic usagevalue: {generic_usagevalue}')
                 region_filter = {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': new_region}
                 filters_with_new_region = new_filters + [region_filter]
                 filters_with_new_region = new_filters + [region_filter] # This creates a copy
@@ -329,7 +351,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         pass
 
 if __name__ == "__main__":
-    default_filename = 'sheet32.xlsx'
+    default_filename = 'sheet321.xlsx'
     filename = input(f"Please enter full filename path (press Enter to use default: {default_filename}): ").strip()
     if not filename:
         filename = default_filename
@@ -345,21 +367,37 @@ if __name__ == "__main__":
     wb.save(filename)
 
     for row_cells in ws.iter_rows(min_row=2, max_row=max_row):
-        counter = 0
-        for i, cell in enumerate(row_cells):
-            counter += 1 # This will now be off by one for columns after the insertion, but it's only used for reading headers.
-            colname = ws[get_column_letter(counter) + str(1)]
-            if colname.value == 'Line Item Product Code':
-                ServiceCode = cell.value
-            if colname.value == 'Line Item Usage Type':
-                t1 = cell.value
-                usagevalue = t1
-                usagecode = t1.split(':')[0]
-            if colname.value == 'Product Region':
-                regionCode = cell.value
-        print(f'Fetching price for Service {ServiceCode} with Usage Type {usagevalue} in Region {regionCode}')
-        unitprice = current_price(ServiceCode, usagecode, regionCode, usagevalue)
-        ws.cell(row=row_cells[0].row, column=unit_price_col_idx).value = unitprice
-        if unitprice:
-            print(f'Unit Price for Service {ServiceCode} {usagevalue} is {unitprice}')
+        try:
+            counter = 0
+            ServiceCode = None
+            usagevalue = None
+            usagecode = None
+            regionCode = None
+            
+            for i, cell in enumerate(row_cells):
+                counter += 1 # This will now be off by one for columns after the insertion, but it's only used for reading headers.
+                colname = ws[get_column_letter(counter) + str(1)]
+                if colname.value == 'Line Item Product Code':
+                    ServiceCode = cell.value
+                if colname.value == 'Line Item Usage Type':
+                    t1 = cell.value
+                    if t1 is not None:
+                        usagevalue = t1
+                        usagecode = t1.split(':')[0]
+                if colname.value == 'Product Region':
+                    regionCode = cell.value
+            
+            # Skip row if required fields are empty
+            if ServiceCode is None or usagevalue is None or regionCode is None:
+                print(f'Skipping row {row_cells[0].row} - Missing required fields')
+                continue
+                
+            print(f'Fetching price for Service {ServiceCode} with Usage Type {usagevalue} in Region {regionCode}')
+            unitprice = current_price(ServiceCode, usagecode, regionCode, usagevalue)
+            ws.cell(row=row_cells[0].row, column=unit_price_col_idx).value = unitprice
+            #wb.save(filename)
+            if unitprice:
+                print(f'Unit Price for Service {ServiceCode} {usagevalue} is {unitprice}')
+        except Exception as e:
+            print(f'Error processing row {row_cells[0].row}: {str(e)}')
     wb.save(filename)
