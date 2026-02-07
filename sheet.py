@@ -33,6 +33,7 @@ dedicatedfactor = {
     "UGW1-DedicatedUsage:m5a.4xlarge": "3"
 }
 
+
 def rdsheavyusuage(ServiceCode, filters1, region_name):
     """
     Fetches RDS heavy usage pricing from AWS Pricing API.
@@ -86,6 +87,7 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
     os = 'Linux'
     tenancy = "Shared"
     byol = False
+    flag = ''
     filters1 = [{}]
 
     if find_whole_word(["BoxUsage"], usagecode):
@@ -107,6 +109,11 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'preInstalledSw','Value': preinstalled_software},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode}
         ]
+    elif ServiceCode == 'AmazonEC2' and find_whole_word(["EBS"], usagecode):
+        filters1 = [            
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue}            
+        ]
+        
     elif find_whole_word(["DedicatedUsage"], usagecode):
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'termType', 'Value': 'OnDemand'},
@@ -179,7 +186,8 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
     elif ServiceCode == 'AmazonEFS':
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': re.sub(r'ET-SmallFiles|SmallFiles', 'ByteHrs', usagevalue).replace('UGW1-ArchiveEarlyDelete-ByteHrs', 'UGW1-ArchiveTimedStorage-ByteHrs')},
-            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
+            #{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
+            #{'Type': 'TERM_MATCH', 'Field': 'operation', 'Value': 'Write'}
         ]
     elif find_whole_word(["DataTransfer","In-Bytes","Out-Bytes"], usagevalue) and ServiceCode == "AWSDataTransfer":
         ServiceCode="AWSDataTransfer"
@@ -242,13 +250,13 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': "Cache Instance"},
             {'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': usagevalue.split('-')[-1].split(':')[-1]},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
-            {"Type": "TERM_MATCH", "Field": "cacheEngine","Value": "Redis"}
+            {"Type": "TERM_MATCH", "Field": "cacheEngine","Value": "Valkey"}
         ]
     elif ServiceCode == 'AWSGlobalAccelerator':
         fromloc = usagevalue.split('-')[0]
-        if fromloc != 'Global':
+        if fromloc != 'Global' or usagevalue.split('-')[-1] == 'fee':
             filters1 = [
-            {"Type": "TERM_MATCH", "Field": "usagetype","Value": usagevalue},  
+            {"Type": "TERM_MATCH", "Field": "usagetype","Value": usagevalue}  
         ]
         else:
             filters1 = [
@@ -261,23 +269,58 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': "network-assessments"},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': 'us-east-1'},
         ]
-    elif ServiceCode =='AmazonSQS':
+    elif ServiceCode =='AWSQueueService':
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace("FIFO", "Standard")},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
-        ]       
+        ] 
+    elif ServiceCode in['AWSSecurityHub','AWSecurityHub']:
+        ServiceCode == 'AWSSecurityHub'
+        filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
+            #{'Type': 'TERM_MATCH', 'Field': 'resourceType', 'Value': 'ShieldProtectionEIP'}
+        ]
+    elif ServiceCode in ['AmazonCloudSearch','AmazonOpenSearchService','Amazon Open Search Service'] :
+        ServiceCode='AmazonES'
+        filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
+        ]
+    elif find_whole_word(["Hardened","SoftwareUsage"], usagevalue) or find_whole_word(["CIHardened","Hardened"], ServiceCode):
+            print(f'Amazon Marketplace service: {ServiceCode}')
+            ServiceCode = 'AmazonEC2'
+            flag='Marketplace'
+            filters1 = [
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace('SoftwareUsage','BoxUsage')},
+                {'Type': 'TERM_MATCH', 'Field': 'operatingSystem', 'Value': 'Linux'},
+                {"Type": "TERM_MATCH", "Field": "preInstalledSw","Value": "NA"},
+                {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode}
+            ]
+    elif ServiceCode in ["AmazonEKS"]:
+        filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': 'us-east-1'}
+        ]
+    elif ServiceCode in ["AWSELB"]:
+        filters1 = [
+            {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
+            {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': 'Load Balancer-Application'},
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode}
+        ]
     else:
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
         ]
 
     try:
+        print(filters1)
         if ServiceCode == "AmazonPinpoint":
             return(0.03)
         # Check for numeric ServiceCodes, which usually indicate a Marketplace product.
-        elif ServiceCode.startswith(tuple(str(i) for i in range(10))):
-            print(f'Skipping non-Amazon service: {ServiceCode}')
-            return('Marketplace')
+        
+        elif ServiceCode.startswith(tuple(str(i) for i in range(10))) :
+            print(f'Skipping Amazon Marketplace service: {ServiceCode}')
+            return('MarketplaceProduct')           
         elif ServiceCode in ["ComputeSavingsPlans","EC2InstanceSavingsPlans","MachineLearningSavingsPlans"]:
             return('SavingsPlans')
         pricing_client = boto3.client('pricing', region_name=region_name)
@@ -296,6 +339,9 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                         found_price = price_dimensions['pricePerUnit']['USD']
                     if found_price is not None:
                         #print(f'Found price for {ServiceCode} {usagevalue} in {regionCode} is {found_price}')
+                        if flag == 'Marketplace':
+                            found_price = float(found_price) + 0.005  # Add 0.5 cents to account for Marketplace fee
+                            print(f'Note: {ServiceCode} {usagevalue} is a Marketplace product. The price {found_price} has .005 Cents added to account for the Marketplace fee.')
                         return found_price
         if not found_price and ServiceCode == 'AmazonEC2':
             print(f'Price not found for {ServiceCode} {usagevalue}. Retrying with generic BoxUsage.')
@@ -346,6 +392,9 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                     for on_demand in price['terms']['OnDemand'].values():
                         for price_dimensions in on_demand['priceDimensions'].values():
                             return price_dimensions['pricePerUnit']['USD']
+        if not found_price:
+            print(f'Found price for {ServiceCode} {usagevalue} in {regionCode} is {found_price}')
+            print(filters1)
     except Exception as e:
         print(e)
         pass
@@ -394,6 +443,11 @@ if __name__ == "__main__":
                 
             print(f'Fetching price for Service {ServiceCode} with Usage Type {usagevalue} in Region {regionCode}')
             unitprice = current_price(ServiceCode, usagecode, regionCode, usagevalue)
+            # Convert to float if numeric, otherwise keep as string
+            try:
+                unitprice = float(unitprice)
+            except (ValueError, TypeError):
+                pass
             ws.cell(row=row_cells[0].row, column=unit_price_col_idx).value = unitprice
             #wb.save(filename)
             if unitprice:
