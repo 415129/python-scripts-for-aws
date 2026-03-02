@@ -250,13 +250,13 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
             {'Type': 'TERM_MATCH', 'Field': 'productFamily', 'Value': "Cache Instance"},
             {'Type': 'TERM_MATCH', 'Field': 'instanceType', 'Value': usagevalue.split('-')[-1].split(':')[-1]},
             {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode},
-            {"Type": "TERM_MATCH", "Field": "cacheEngine","Value": "Valkey"}
+            {"Type": "TERM_MATCH", "Field": "cacheEngine","Value": "Redis"}
         ]
     elif ServiceCode == 'AWSGlobalAccelerator':
         fromloc = usagevalue.split('-')[0]
         if fromloc != 'Global' or usagevalue.split('-')[-1] == 'fee':
             filters1 = [
-            {"Type": "TERM_MATCH", "Field": "usagetype","Value": usagevalue}  
+            {"Type": "TERM_MATCH", "Field": "usagetype","Value": usagevalue}
         ]
         else:
             filters1 = [
@@ -297,9 +297,16 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
                 {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode}
             ]
     elif ServiceCode in ["AmazonEKS"]:
+        
+        # USE1-AmazonEKS-Hours:extendedSupport = USE1-AmazonEKS-Hours:extendedSupport + USE1-AmazonEKS-Hours:perCluster (.50+.10)
+        if find_whole_word(["extendedSupport"], usagevalue):
+            filters1 = [
+                {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': "USE1-AmazonEKS-Hours:perCluster"},
+                {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode}
+            ]
         filters1 = [
             {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue},
-            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': 'us-east-1'}
+            {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode}
         ]
     elif ServiceCode in ["AWSELB"]:
         filters1 = [

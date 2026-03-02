@@ -145,7 +145,7 @@ First 10 Service Codes:
 * AmazonEI
 * AmazonEKSAnywhere
 * AmazonEKS
-* AmazonES
+* AmazonES is same as opensearch
 * AmazonETS
 * AmazonEVS
 * AmazonElastiCache
