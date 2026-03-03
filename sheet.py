@@ -17,6 +17,7 @@ from openpyxl.styles import Font
 from openpyxl.utils.cell import coordinate_from_string, column_index_from_string, get_column_letter
 from botocore.exceptions import ClientError
 import re
+import marketplace
 
 dedicatedfactor = {
     "UGW1-DedicatedUsage:r6i.large": "64",
@@ -288,14 +289,10 @@ def current_price(ServiceCode, usagecode, regionCode, usagevalue, byol='Bring yo
         ]
     elif find_whole_word(["Hardened","SoftwareUsage"], usagevalue) or find_whole_word(["CIHardened","Hardened"], ServiceCode):
             print(f'Amazon Marketplace service: {ServiceCode}')
-            ServiceCode = 'AmazonEC2'
-            flag='Marketplace'
-            filters1 = [
-                {'Type': 'TERM_MATCH', 'Field': 'usagetype', 'Value': usagevalue.replace('SoftwareUsage','BoxUsage')},
-                {'Type': 'TERM_MATCH', 'Field': 'operatingSystem', 'Value': 'Linux'},
-                {"Type": "TERM_MATCH", "Field": "preInstalledSw","Value": "NA"},
-                {'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': regionCode}
-            ]
+            ec2, fee, total = marketplace.get_marketplace_ami_total_hourly(product_title_contains=usagevalue, instance_type=usagevalue.split(':')[-1], location="US East (N. Virginia)")
+            if total is not None:
+                print(f'Price for {ServiceCode} {usagevalue} is EC2: {ec2}, Marketplace Fee: {fee}, Total: {total}')
+                return total
     elif ServiceCode in ["AmazonEKS"]:
         
         # USE1-AmazonEKS-Hours:extendedSupport = USE1-AmazonEKS-Hours:extendedSupport + USE1-AmazonEKS-Hours:perCluster (.50+.10)
